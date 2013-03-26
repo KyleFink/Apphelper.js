@@ -1,109 +1,226 @@
+/*
+
+    Microzone jQuery AppHelper
+    Version: 1.0.3
+
+    See Changelog in changelog.txt
+
+*/
+
 var App = {
-    _geocoder: undefined,
-    ConvertDate: function (data) {
-        data = data.replace(/\D/g, '');
-        try {
-            return new Date(parseInt(data));
-        } catch (e) {
-            return data;
+    _MonthNames: new Array('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'),
+    _DayNames: new Array('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'),
+    FormatString: function() {
+        var args = [].slice.call(arguments);
+        if (this.toString() != '[object Object]') {
+            args.unshift(this.toString());
         }
+
+        var pattern = new RegExp('{([1-' + args.length + '])}', 'g');
+        return String(args[0]).replace(pattern, function(match, index) { return args[index]; });
     },
-    Download : function(url, data) {
-        //url and data options required
-        if (url && data) {
-
-            jQuery.jGrowl('Please Be Patient While Your file is Prepared. A Download Dialog Will appear once its ready.', { life: 5000, position: "top-right" });
-            //data can be string of parameters or array/object
-            data = typeof data == 'string' ? data : jQuery.param(data);
-            //split params into form inputs
-            var inputs = '';
-            var count = 0;
-
-            jQuery.each(data.split('&'), function () {
-                var pair = this.split('=');
-                var regex = new RegExp('([0-9]{2})%2F([0-9]{2})%2F([0-9]{4})', 'm');
-                if (regex.test(pair[1]))
-                    pair[1] = pair[1].replace(/%2F/g, '/');
-
-                inputs += '<input type="hidden" name="' + pair[0] + '" value="' + pair[1] + '" />';
-                count++;
-
-            });
-            //send request
-
-            jQuery('<form action="' + url + '" method="' + 'post' + '">' + inputs + '</form>')
-                .appendTo('body').submit().remove();
-        }
-        ;
-
+    RedirectTo: function(url) {
+        window.location.replace(url);
     },
-    PostData: function (url, data, fnOnSuccess) {
-        $.ajax({
-            url: url,
-            type: 'POST',
-            dataType: 'json',
-            contentType: 'application/json; charset=utf-8',
-            data: JSON.stringify(data),
-            success: fnOnSuccess,
-            error: function (a, b, c) {
-                alert(a.responseText);
+    Cookies: {
+        Get: function(name) {
+            var i, x, y, arRcookies = document.cookie.split(";");
+            for (i = 0; i < arRcookies.length; i++) {
+                x = arRcookies[i].substr(0, arRcookies[i].indexOf("="));
+                y = arRcookies[i].substr(arRcookies[i].indexOf("=") + 1);
+                x = x.replace(/^\s+|\s+$/g, "");
+                if (x == name) {
+                    return unescape(y);
+                }
             }
-        });
-        return false;
-    },
-    GetHtml: function (url, data, fnOnSuccess) {
-        if (data)
-            url = url + '?' + $.param(data);
-        $.ajax({
-            url: url,
-            type: 'GET',
-            cache: false,
-            dataType: 'html',
-            contentType: 'application/json; charset=utf-8',            
-            success: fnOnSuccess,
-            error: function (a, b, c) {
-                alert(a.responseText);
-            }
-        });
-        return false;
-    },
-    GetFormData: function (elem, splitby) {
-        var paramObj = {};
-        var arrayObject = [];
-        var formArray;
-        if (splitby) {
-            alert('this feature is not yet implemeted or tested, please collect data self.');
-            // get the rest of the form, exclude the split by 
-            //formArray = $(elem).not(splitby).serializeArray();
-            //$.each(formArray, function (_, kv) {
-            //    if (paramObj.hasOwnProperty(kv.name)) {
-            //        paramObj[kv.name] = $.makeArray(paramObj[kv.name]);
-            //        paramObj[kv.name].push(kv.value);
-            //    } else {
-            //        paramObj[kv.name] = kv.value;
-            //    }
-            //});
-            //// get the split by
-            //$(elem).find(splitby).each(function () {
-            //    var objArray = $(this).find(':input').serializeArray();
-            //    var obj = {};
-            //    $.each(objArray, function (_, kv) {
-            //        kv.name = kv.name.split(/[.]+/).pop();
-            //        if (obj.hasOwnProperty(kv.name)) {
-            //            obj[kv.name] = $.makeArray(obj[kv.name]);
-            //            obj[kv.name].push(kv.value);
-            //        } else {
-            //            obj[kv.name] = kv.value;
-            //        }
-            //    });
-            //    $.extend(obj, paramObj);
-            //    arrayObject.push(obj);
-            //});
-            //return arrayObject;
             return undefined;
-        } else {
-            formArray = $(elem).serializeArray();
-            $.each(formArray, function (_, kv) {
+        },
+        Set: function(name, value, exdays) {
+            var exdate = new Date();
+            exdate.setDate(exdate.getDate() + exdays);
+            var cValue = escape(value) + ((exdays == null) ? "" : "; expires=" + exdate.toUTCString());
+            document.cookie = name + "=" + cValue;
+        }
+    },
+    QTip: {
+        CreateAjax: function(elem, my, at, url, data, fnSuccess) {
+            $(elem).qtip({
+                position: {
+                    my: my,
+                    at: at
+                },
+                style: {
+                    classes: 'ui-tooltip-tipsy'
+                },
+                content: {
+                    text: '<img src="Content/images/loaders/bajax.gif" style="margin-top: 4px" />', // The text to use whilst the AJAX request is loading
+                    ajax: {
+                        global: false,
+                        url: url,
+                        type: 'POST',
+                        dataType: 'json',
+                        contentType: 'application/json; charset=utf-8',
+                        data: JSON.stringify(data),
+                        success: fnSuccess,
+                        converters: {
+                            'text json': function(jsonString) {
+                                var result = JSON.parse(jsonString, function(key, value) {
+                                    var a;
+                                    if (typeof value === 'string') {
+                                        a = /\/Date\((\d*)\)\//.exec(value);
+                                        if (a) {
+                                            return new Date(+a[1]);
+                                        }
+                                    }
+                                    return value;
+                                });
+                                return result;
+                            }
+                        },
+                        timeout: 30000,
+                        async: true,
+                        cache: false
+                    }
+                }
+            });
+        }
+    },
+    Map: {
+        _geocoder: undefined,
+        initGoogleGeoCoder: function() {
+            _geocoder = new google.maps.Geocoder();
+        },
+        Create: function(elem, centerLat, centerLng, zoomLevel) {
+            var $elem = $(elem).gmap3({
+                action: 'init',
+                options: {
+                    center: [centerLat, centerLng],
+                    zoom: zoomLevel,
+                    mapTypeControl: true,
+                    mapTypeControlOptions: {
+                        style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+                    },
+                    navigationControl: true,
+                    scrollwheel: true,
+                    streetViewControl: true
+                },
+                events: {
+                    bounds_changed: function(map) {
+                        console.log(map.getBounds().getCenter());
+                        var bounds = map.getBounds();
+                        var ne = bounds.getNorthEast();
+                        var sw = bounds.getSouthWest();
+                    }
+                }
+            });
+        },
+        AddMarker: function(elem, lat, lng, data, iconUrl) {
+            $(elem).gmap3({
+                action: 'addMarkers',
+                markers: [
+                    {
+                        lat: lat,
+                        lng: lng,
+                        data: data,
+                        options: { icon: new google.maps.MarkerImage(iconUrl) }
+                    }
+                ],
+                marker: {
+                    options: {
+                        draggable: false
+                    }
+                }
+            });
+        },
+        GetLatLong: function(address, fnCallback) {
+            _geocoder.geocode({ address: address }, function (results, status) {
+                if (status.toLowerCase() == 'ok') {
+                    var loc = results[0].geometry.location;
+                    fnCallback(true, loc);
+                } else {
+                    fnCallback(false);
+                }
+            });
+            return false;
+        }
+    },
+    Calendar: {
+        Create: function(elem, ratio, url, data, fnCallback) {
+            $(elem).fullCalendar({
+                aspectRatio: ratio,
+                events: {
+                    url: url,
+                    type: 'POST',
+                    dataFilter: function(jsonString, type) {
+                        if (type === 'json') {
+                            // convert things that look like Dates into a UTC Date string and completely replace them. 
+                            jsonString = jsonString.replace(/(.*?")(\\\/Date\([0-9\-]+\)\\\/)(")/g,
+                                function(fullMatch, $1, $2, $3) {
+                                    try {
+                                        return $1 + new Date(parseInt($2.substr(7))).toUTCString() + $3;
+                                    } catch(e) {
+                                    }
+                                    // something miserable happened, just return the original string            
+                                    return $1 + $2 + $3;
+                                });
+                        }
+                        return jsonString;
+                    },
+                    data: data,
+                    error: function() {
+                        alert('Error, there was an error while fetching events!');
+                    }
+                },
+                eventRender: fnCallback,
+                dayClick: function (date, allDay, jsEvent, view) {
+                    $(elem).fullCalendar('gotoDate', date);
+                    $(elem).fullCalendar('changeView', 'basicDay');
+                },
+                header: {
+                    right: 'today prev,next,month,basicWeek,basicDay'
+                }
+            });
+            return false;
+        },
+        RefreshCalendar: function(elem) {
+            $(elem).fullCalendar('refetchEvents');
+            return false;
+        }
+    },
+    Select2: {
+        Create: function(elem) {
+            $(elem || '.chzn').select2();
+        },
+        SetSelectedData: function(elem, data) {
+            $(elem).select2('data', data);
+        },
+        CreateAjax: function(elem, fnId, defaultText, url, fnData, fnFormatResult, fnFormatSelection) {
+            var $elem = $(elem);
+            $elem.select2({
+                id: fnId,
+                placeholder: defaultText,
+                minimumInputLength: 3,
+                ajax: {
+                    url: url,
+                    dataType: 'json',
+                    data: fnData,
+                    results: function(data) {
+                        return { results: data };
+                    }
+                },
+                formatResult: fnFormatResult,
+                formatSelection: fnFormatSelection
+            });
+        }
+    },
+    Form: {
+        IsValid: function(elem) {
+            return $(elem).validate().form();
+        },
+        GetData: function(elem) {
+            var paramObj = {};
+            var formArray = $(elem).serializeArray();
+            $.each(formArray, function(_, kv) {
                 if (paramObj.hasOwnProperty(kv.name)) {
                     paramObj[kv.name] = $.makeArray(paramObj[kv.name]);
                     paramObj[kv.name].push(kv.value);
@@ -112,251 +229,270 @@ var App = {
                 }
             });
             return paramObj;
+        },
+        Reset: function (elem) {
+            $(elem).find(':checkbox:checked').removeAttr('checked');
+            $(elem).find(':radio:selected').removeAttr('selected');
+            $(elem).find(':input:not([type="hidden"])').val('');
+            $(elem).find('[multiselect="multiselect"]:selected').removeAttr('selected');
         }
     },
-    SetCookie: function (name, value, exdays) {
-        var exdate = new Date();
-        exdate.setDate(exdate.getDate() + exdays);
-        var cValue = escape(value) + ((exdays == null) ? "" : "; expires=" + exdate.toUTCString());
-        document.cookie = name + "=" + cValue;
-    },
-    GetCookie: function (name) {
-        var i, x, y, arRcookies = document.cookie.split(";");
-        for (i = 0; i < arRcookies.length; i++) {
-            x = arRcookies[i].substr(0, arRcookies[i].indexOf("="));
-            y = arRcookies[i].substr(arRcookies[i].indexOf("=") + 1);
-            x = x.replace(/^\s+|\s+$/g, "");
-            if (x == name) {
-                return unescape(y);
-            }
+    Dialog : {
+        Create: function (elem, title, height, width, fnOnOpen) {
+            $(elem).dialog({
+                title: title,
+                autoOpen: false,
+                height: height,
+                width: width,
+                modal: true,
+                show: "drop",
+                hide: "blind",
+                open: fnOnOpen
+            });
+            return false;
+        },
+        Open: function (elem, html) {
+            if (html)
+                $(elem).html(html);
+            $(elem).dialog('open');
+            return false;
+        },
+        Close: function(elem) {
+            $(elem).dialog('close');
+            return false;
         }
-        return undefined;
     },
-    FormatString: function () {
-        var args = [].slice.call(arguments);
-        if (this.toString() != '[object Object]') {
-            args.unshift(this.toString());
-        }
+    Handlebars: {
+        Init : function() {
+            App.Handlebars.Templates.Options = Handlebars.compile('<option value="-1">SELECT AN OPTION</option>' +
+                '{{#each this}}' +
+                '{{#if Selected}}' +
+                '<option value="{{Value}}" selected="selected">{{Text}}</option>' +
+                '{{else}}' +
+                '<option value="{{Value}}">{{Text}}</option>' +
+                '{{/if}}' +
+                '{{/each}}');
+            Handlebars.registerHelper('Data_Item', function (obj) {
+                var d = JSON.stringify(obj);
+                var attr = 'data-item';
+                attr = Handlebars.Utils.escapeExpression(attr);
+                d = Handlebars.Utils.escapeExpression(d);
 
-        var pattern = new RegExp('{([1-' + args.length + '])}', 'g');
-        return String(args[0]).replace(pattern, function (match, index) { return args[index]; });
-    },
-    CreateDialog: function (elem, title, height, width, fnOnOpen) {
-        $(elem).dialog({
-            title: title,
-            autoOpen: false,
-            height: height,
-            width: width,
-            modal: true,
-            show: "drop",
-            hide: "blind",
-            open: fnOnOpen
-        });
-        return false;
-    },
-    OpenDialog: function (elem, html) {
-        if (html)
-            $(elem).html(html);
-        $(elem).dialog('open');
-        return false;
-    },
-    CloseDialog: function (elem) {
-        $(elem).dialog('close');
-        return false;
-    },
-    CreateCalendar: function (elem, ratio, url, data) {
-        $(elem).fullCalendar({
-            aspectRatio: ratio,
-            events: {
-                url: url,
-                type: 'POST',
-                dataFilter: function (data, type) {
-                    if (type === 'json') {
-                        // convert things that look like Dates into a UTC Date string
-                        // and completely replace them. 
-                        data = data.replace(/(.*?")(\\\/Date\([0-9\-]+\)\\\/)(")/g,
-                            function (fullMatch, $1, $2, $3) {
-                                try {
-                                    return $1 + new Date(parseInt($2.substr(7))).toUTCString() + $3;
-                                } catch (e) {
-                                }
-                                // something miserable happened, just return the original string            
-                                return $1 + $2 + $3;
-                            });
-                    }
-                    return data;
-                },
-                data: data,
-                error: function () {
-                    alert('Error, there was an error while fetching events!');
-                }
-            }
-        });
-        return false;
-    },
-    CreateCalendarWithCallback: function (elem, ratio, url, data, callback) {
-        if (typeof (callback) !== "function") {
-            //overwrite to avoid exception
-            callback = function () {
-            };
+                var result = attr + '="' + d + '"';
+
+                return new Handlebars.SafeString(result);
+            });
+            Handlebars.registerHelper('Currency', function (d) {
+                return jQuery('<span></span>').append(d).formatCurrency({
+                    region: 'en-ZA'
+                }).html();
+            });
+        },
+        Templates : {
+            Options : undefined
+        },
+        CreateTemplate : function(elem) {
+            return Handlebars.compile($(elem).html());
         }
-        $(elem).fullCalendar({
-            aspectRatio: ratio,
-            events: {
+    },
+    Ajax : {
+        Post: function (url, data, fnOnSuccess) {
+            $.ajax({
                 url: url,
                 type: 'POST',
-                dataFilter: function (data, type) {
-                    if (type === 'json') {
-                        // convert things that look like Dates into a UTC Date string
-                        // and completely replace them. 
-                        data = data.replace(/(.*?")(\\\/Date\([0-9\-]+\)\\\/)(")/g,
-                            function (fullMatch, $1, $2, $3) {
-                                try {
-                                    return $1 + new Date(parseInt($2.substr(7))).toUTCString() + $3;
-                                } catch (e) {
-                                }
-                                // something miserable happened, just return the original string            
-                                return $1 + $2 + $3;
-                            });
-                    }
-                    return data;
+                dataType: 'json',
+                contentType: 'application/json; charset=utf-8',
+                data: JSON.stringify(data),
+                success: fnOnSuccess,
+                error: function (a, b, c) {
+                    alert(a.responseText);
                 },
-                data: data,
-                error: function () {
-                    alert('Error, there was an error while fetching events!');
-                }
-            },
-            eventRender: function (event, element) {
-                callback(event, element);
-            },
-        });
-        return false;
-    },
-    ReloadCalander: function (elem) {
-        $(elem).fullCalendar('refetchEvents');
-        return false;
-    },
-    GetGPSLocation: function (address, fnOnSuccess, fnOnFailure) {
-        if (geocoder) {
-            geocoder.geocode({ address: address }, function (results, status) {
-                if (status.toLowerCase() == 'ok') {
-                    var loc = results[0].geometry.location;
-                    fnOnSuccess(loc);
-                } else {
-                    fnOnFailure();
+                converters: {
+                    'text json': function (jsonString) {
+                        var result = JSON.parse(jsonString, function (key, value) {
+                            var a;
+                            if (typeof value === 'string') {
+                                a = /\/Date\((\d*)\)\//.exec(value);
+                                if (a) {
+                                    return new Date(+a[1]);
+                                }
+                            }
+                            return value;
+                        });
+                        return result;
+                    }
+                },
+                timeout: 30000,
+                async: true,
+                cache: false
+            });
+            return false;
+        },
+        GetHtml: function (url, data, fnOnSuccess) {
+            if (data)
+                url = url + '?' + $.param(data);
+            $.ajax({
+                url: url,
+                type: 'GET',
+                timeout: 30000,
+                async: true,
+                cache: false,
+                dataType: 'html',
+                contentType: 'application/json; charset=utf-8',
+                success: fnOnSuccess,
+                error: function (a, b, c) {
+                    alert(a.responseText);
                 }
             });
-        } else {
-            alert('Error, geocoder is not initialised.');
+            return false;
+        },
+        Download: function(url, data) {
+            if (url && data) {
+                //data can be string of parameters or array/object
+                data = typeof data == 'string' ? data : $.param(data);
+                //split params into form inputs
+                var inputs = '';
+                var count = 0;
+                $.each(data.split('&'), function () {
+                    var pair = this.split('=');
+                    var regex = new RegExp('([0-9]{2})%2F([0-9]{2})%2F([0-9]{4})', 'm');
+                    if (regex.test(pair[1]))
+                        pair[1] = pair[1].replace(/%2F/g, '/');
+                    inputs += '<input type="hidden" name="' + pair[0] + '" value="' + pair[1] + '" />';
+                    count++;
+                });
+                //send request
+                $('<form action="' + url + '" method="' + 'post' + '">' + inputs + '</form>').appendTo('body').submit().remove();
+            }
         }
-        return false;
     },
-    CreateDataTable: function (elem, url, data, columns) {
-        var oTable = jQuery(elem).dataTable({
-            bServerSide: false,
-            sAjaxSource: url,
-            fnServerData: function (sSource, aoData, fnCallback) {
-                var d = { aoData: aoData };
-                if (typeof(data) !== "function") {
-                    jQuery.extend(d, data);
-                } else {
-                    jQuery.extend(d, data());
+    DataTables: {
+        Init: function() {
+            $.fn.dataTableExt.oApi.fnReloadAjax = function (oSettings, sNewSource, fnCallback, bStandingRedraw) {
+                if (typeof sNewSource != 'undefined' && sNewSource != null) {
+                    oSettings.sAjaxSource = sNewSource;
                 }
-                App.PostData(sSource, d, fnCallback);
-            },
-            sPaginationType: 'full_numbers',
-            aoColumns: columns
-        });
-        return oTable;
-    },
-    CreateAjaxSelect: function (elem, fnId, defaultText, url, fnData, fnFormatResult, fnFormatSelection, fnInitSelection) {
-        var $elem = $(elem);
-        var initId = $elem.val();
-        var initData = $elem.data('init-select');
-        $elem.select2({
-            id: fnId,
-            placeholder: defaultText,
-            minimumInputLength: 3,
-            ajax: {
-                url: url,
-                dataType: 'json',
-                data: fnData,
-                results: function (data) {
-                    return { results: data };
-                }
-            },
-            formatResult: fnFormatResult,
-            formatSelection: fnFormatSelection
-        });
-        if (initData != null)
-            $(elem).select2('data', initData);
-        //if (fnInitSelection) {
-        //    fnInitSelection({ id: initId });
-        //}
-    },
-    SetAjaxSelectData: function(elem, data) {
-        $(elem).select2('data', data);
-    },
-    OptionsTemplate: undefined,
-    CreateHandlebarsTemplate : function(elem) {
-        return Handlebars.compile($(elem).html());
-    },
-    RedirectTo : function(url) {
-        window.location.replace(url);
-    },
-    IsFormValid : function(elem) {
-        return $(elem).validate().form();
-    },
-    CreateMap : function(elem, centerLat, centerLng, zoomLevel) {
-        var $elem = $(elem).gmap3({
-            action: 'init',
-            options: {
-                center: [centerLat, centerLng],
-                zoom: zoomLevel,
-                mapTypeControl: true,
-                mapTypeControlOptions: {
-                    style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+                this.oApi._fnProcessingDisplay(oSettings, true);
+                var that = this;
+                var iStart = oSettings._iDisplayStart;
+
+                oSettings.fnServerData(oSettings.sAjaxSource, [], function (json) {
+                    /* Clear the old information from the table */
+                    that.oApi._fnClearTable(oSettings);
+
+                    /* Got the data - add it to the table */
+                    var aData = (oSettings.sAjaxDataProp !== "") ?
+                        that.oApi._fnGetObjectDataFn(oSettings.sAjaxDataProp)(json) : json;
+
+                    for (var i = 0; i < json.aaData.length; i++) {
+                        that.oApi._fnAddData(oSettings, json.aaData[i]);
+                    }
+
+                    oSettings.aiDisplay = oSettings.aiDisplayMaster.slice();
+                    that.fnDraw();
+
+                    if (typeof bStandingRedraw != 'undefined' && bStandingRedraw === true) {
+                        oSettings._iDisplayStart = iStart;
+                        that.fnDraw(false);
+                    }
+
+                    that.oApi._fnProcessingDisplay(oSettings, false);
+
+                    /* Callback user function - for event handlers etc */
+                    if (typeof fnCallback == 'function' && fnCallback != null) {
+                        fnCallback(oSettings);
+                    }
+                }, oSettings);
+            };
+            $.fn.dataTableExt.oApi.fnToggleDetails = function (oSettings, elem, fnFormatDetails) {
+                var that = this;
+                $(that).on('click', elem, function (e) {
+                    e.preventDefault();
+                    var nTr = this.parentNode.parentNode;
+                    if ($(this).hasClass('details_open')) {
+                        $(this).removeClass('details_open').addClass('details_close');
+                        that.fnClose(nTr);
+                    } else {
+                        var aData = that.fnGetData(nTr);
+                        $(this).removeClass('details_close').addClass('details_open');
+                        that.fnOpen(nTr, fnFormatDetails(that, nTr, aData), 'details_row');
+                    }
+                });
+            };
+        },
+        Create : function(elem) {
+            var oTable = jQuery(elem).dataTable({
+                sPaginationType: 'full_numbers'
+            });
+            return oTable;
+        },
+        CreateAjax: function (elem, url, data, columns, serverside) {
+            var oTable = jQuery(elem).dataTable({
+                bServerSide: serverside || false,
+                sAjaxSource: url,
+                fnServerData: function (sSource, aoData, fnCallback) {
+                    var d = { aoData: aoData };
+                    if (typeof (data) !== "function") {
+                        jQuery.extend(d, data);
+                    } else {
+                        jQuery.extend(d, data());
+                    }
+                    App.Ajax.Post(sSource, d, fnCallback);
                 },
-                navigationControl: true,
-                scrollwheel: true,
-                streetViewControl: true
-            },
-            events: {
-                bounds_changed: function (map) {
-                    console.log(map.getBounds().getCenter());
-                    var bounds = map.getBounds();
-                    var ne = bounds.getNorthEast();
-                    var sw = bounds.getSouthWest();
-                }
-            }
-        });
+                sPaginationType: 'full_numbers',
+                aoColumns: columns
+            });
+            return oTable;
+        }
     },
-    AddMapMarker : function(elem, lat, lng, data, iconUrl) {
-        $(elem).gmap3({
-            action: 'addMarkers',
-            markers: [
-                {
-                    lat: lat,
-                    lng: lng,
-                    data: data,
-                    options: { icon: new google.maps.MarkerImage(iconUrl) }
-                }
-            ],
-            marker: {
-                options: {
-                    draggable: false
-                }
-            }
-        });
+    Dates : {
+        Init: function() {
+            Date.prototype.toShortDateString = function() {
+                var d = this;
+                return App.FormatString('{1}/{2}/{3}', d.getDate(), d.getMonth() + 1, d.getFullYear());
+            };
+            Date.prototype.toLongDateString = function () {
+                var d = this;
+                return App.FormatString('{1}, {2} {3} {4}', App._DayNames[d.getDay()], d.getDate(), App._MonthNames[d.getMonth()], d.getFullYear());
+            };
+            Date.prototype.toShortDateTimeString = function () {
+                var d = this;
+                var h;
+                h = d.getHours();
+                var ap = (d.getHours() < 12) ? 'AM' : 'PM';
+                return App.FormatString('{1}/{2}/{3} {4}:{5}:{6} {7}', d.getDate(), d.getMonth() + 1, d.getFullYear(), h, d.getMinutes(), d.getSeconds(), ap);
+            };
+            Date.prototype.toLongDateTimeString = function () {
+                var d = this;
+                var h = d.getHours();
+                var ap = (d.getHours() < 12) ? 'AM' : 'PM';
+                return App.FormatString('{1}, {2} {3} {4} {5}:{6}:{7} {8}', App._DayNames[d.getDay()], d.getDate(), App._MonthNames[d.getMonth()], d.getFullYear(), h, d.getMinutes(), d.getSeconds(), ap);
+            };
+            Date.prototype.toTimeString = function () {
+                var d = this;
+                var h = d.getHours();
+                var ap = (d.getHours() < 12) ? 'AM' : 'PM';
+                return App.FormatString('{1}:{2}:{3} {4}', h, d.getMinutes(), d.getSeconds(), ap);
+            };
+        },
+        DatePicker : function(elem) {
+            $(elem || '.datepicker, .date').datepicker({
+                dateFormat: "dd/mm/yy",
+                changeMonth: true,
+                changeYear: true,
+                showOn: 'focus'
+            });
+        },
+        DateTimePicker : function(elem) {
+            $(elem || '.datetime, .datetimepicker').datetimepicker({
+                dateFormat: "dd/mm/yy",
+                timeFormat: "hh:mm:ss TT"
+            });
+        }
     }
 };
 
 App.init = function () {
-    $.ajaxSetup({
-        timeout: 30000,
-        async: true,
-        cache: false
-    });
     $.validator.methods["date"] = function (a, b) {
         return this.optional(b) || /^(((0[1-9]|[12]\d|3[01])\/(0[13578]|1[02])\/((1[6-9]|[2-9]\d)\d{2}))|((0[1-9]|[12]\d|30)\/(0[13456789]|1[012])\/((1[6-9]|[2-9]\d)\d{2}))|((0[1-9]|1\d|2[0-8])\/02\/((1[6-9]|[2-9]\d)\d{2}))|(29\/02\/((1[6-9]|[2-9]\d)(0[48]|[2468][048]|[13579][26])|((16|[2468][048]|[3579][26])00))))$/i.test(a);
     };
@@ -377,123 +513,7 @@ App.init = function () {
     });
 };
 
-App.initDatePicker = function () {
-    $('.datepicker, .date').datepicker({
-        dateFormat: "dd/mm/yy",
-        changeMonth: true,
-        changeYear: true,
-        showOn: 'focus'
-    });
-};
-
-App.initHandlebars = function () {
-    this.OptionsTemplate = Handlebars.compile('<option value="-1">SELECT AN OPTION</option>' +
-                '{{#each this}}' +
-                '{{#if Selected}}' +
-                '<option value="{{Value}}" selected="selected">{{Text}}</option>' +
-                '{{else}}' +
-                '<option value="{{Value}}">{{Text}}</option>' +
-                '{{/if}}' +
-                '{{/each}}');
-    Handlebars.registerHelper('Data_Item', function (obj) {
-        var d = JSON.stringify(obj);
-        var attr = 'data-item';
-        attr = Handlebars.Utils.escapeExpression(attr);
-        d = Handlebars.Utils.escapeExpression(d);
-
-        var result = attr + '="' + d + '"';
-
-        return new Handlebars.SafeString(result);
-    });
-};
-
-App.initGoogleGeoCoder = function () {
-    geocoder = new google.maps.Geocoder();
-};
-
-App.initDataTables = function() {
-    $.fn.dataTableExt.oApi.fnReloadAjax = function (oSettings, sNewSource, fnCallback, bStandingRedraw) {
-        if (typeof sNewSource != 'undefined' && sNewSource != null) {
-            oSettings.sAjaxSource = sNewSource;
-        }
-        this.oApi._fnProcessingDisplay(oSettings, true);
-        var that = this;
-        var iStart = oSettings._iDisplayStart;
-
-        oSettings.fnServerData(oSettings.sAjaxSource, [], function (json) {
-            /* Clear the old information from the table */
-            that.oApi._fnClearTable(oSettings);
-
-            /* Got the data - add it to the table */
-            var aData = (oSettings.sAjaxDataProp !== "") ?
-                that.oApi._fnGetObjectDataFn(oSettings.sAjaxDataProp)(json) : json;
-
-            for (var i = 0; i < json.aaData.length; i++) {
-                that.oApi._fnAddData(oSettings, json.aaData[i]);
-            }
-
-            oSettings.aiDisplay = oSettings.aiDisplayMaster.slice();
-            that.fnDraw();
-
-            if (typeof bStandingRedraw != 'undefined' && bStandingRedraw === true) {
-                oSettings._iDisplayStart = iStart;
-                that.fnDraw(false);
-            }
-
-            that.oApi._fnProcessingDisplay(oSettings, false);
-
-            /* Callback user function - for event handlers etc */
-            if (typeof fnCallback == 'function' && fnCallback != null) {
-                fnCallback(oSettings);
-            }
-        }, oSettings);
-    };
-    $.fn.dataTableExt.oApi.fnToggleDetails = function (oSettings, elem, fnFormatDetails) {
-        var that = this;
-        $(elem).live('click', function (e) {
-            e.preventDefault();
-            var nTr = this.parentNode.parentNode;
-            if ($(this).hasClass('details_open')) {
-                $(this).removeClass('details_open').addClass('details_close');
-                that.fnClose(nTr);
-            } else {
-                var aData = that.fnGetData(nTr);
-                $(this).removeClass('details_close').addClass('details_open');
-                that.fnOpen(nTr, fnFormatDetails(that, nTr, aData), 'details_row');
-            }
-        });
-    };
-};
-
-App.initChosen = function () {
-    $('.chzn').chosen();
-}
-//Ajax helpers
-App.Load = function (url, data) {
-    if (typeof (callback) !== "function") {
-        //overwrite to avoid exception
-        callback = function () {
-
-        };
-    }
-    var returns;
-    $.ajax({
-        url: url,
-        type: 'GET',
-        data: JSON.stringify(data),
-        contentType: 'application/json; charset=utf-8',
-        dataType: 'html'
-    }).done(function (data) {
-        returns = data;
-        callback(data);
-    }).fail(function (xhr, ajaxOptions, thrownError) {
-        
-    }).always(function (data) {
-
-    });
-
-    return returns;
-};
+//TODO: Remove all the unused script, and replace the scripts with the new scripts
 
 App.Get = function (url, data, callback) {
     if (typeof(callback) !== "function") {
@@ -576,6 +596,12 @@ jQuery.fn.chosenRefresh = function () {
     jQuery(this).trigger('liszt:updated');
     return this;
 };
+
+
+jQuery.fn.outerHtml = function () {
+    return $("<div/>").append(this.eq(0).clone()).html();
+};
+
 
 
 jQuery.fn.numericOnly = function () {

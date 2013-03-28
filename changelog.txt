@@ -1,6 +1,8 @@
 Microzone jQuery AppHelper - Change Log
 ---------------------------------------
 
+      Version: 1.0.4:
+        - Updated Handlebars (Changed Handlebars.Init and added Handlebars.Templates.FormatCurrency)
       Version: 1.0.3:
         - Updated App.Calendar.Create
       Version: 1.0.2:

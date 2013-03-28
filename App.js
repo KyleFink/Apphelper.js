@@ -283,13 +283,22 @@ var App = {
                 return new Handlebars.SafeString(result);
             });
             Handlebars.registerHelper('Currency', function (d) {
-                return jQuery('<span></span>').append(d).formatCurrency({
-                    region: 'en-ZA'
-                }).html();
+                return App.Handlebars.Templates.FormatCurrency(d);
             });
         },
         Templates : {
-            Options : undefined
+            Options: undefined,
+            FormatCurrency: function (d) {
+                if (d) {
+                    return jQuery('<span></span>').append(d).formatCurrency({
+                        region: 'en-ZA'
+                    }).html();
+                } else {
+                    return jQuery('<span>0</span>').formatCurrency({
+                        region: 'en-ZA'
+                    }).html();
+                }
+            }
         },
         CreateTemplate : function(elem) {
             return Handlebars.compile($(elem).html());
